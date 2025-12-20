@@ -1,65 +1,59 @@
-import axios from "axios";
-import React, { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  setCurrentAddress,
-  setCurrentCity,
-  setCurrentState,
-} from "../redux/userSlice";
-import { setAddress, setLocation } from "../redux/mapSlice";
+import axios from "axios"
+import { useEffect } from "react"
+import { useDispatch, useSelector } from "react-redux"
+import { setCity, setCurrentState, setCurrentAddress } from "../redux/userSlice"
+import { setAddress, setLocation } from "../redux/mapSlice"
 
 function useGetCity() {
-  const dispatch = useDispatch();
-  const apiKey = import.meta.env.VITE_GEOAPIKEY;
-  const { userData } = useSelector((state) => state.user);
+  const dispatch = useDispatch()
+  const apiKey = import.meta.env.VITE_GEOAPIKEY
+  const city = useSelector(state => state.user.city)
 
   useEffect(() => {
+    if (city) return
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
-          const latitude = position.coords.latitude;
-          const longitude = position.coords.longitude;
+          const { latitude, longitude } = position.coords
 
-          // ✅ Store in mapSlice
-          dispatch(setLocation({ lat: latitude, lon: longitude }));
+          dispatch(setLocation({ lat: latitude, lon: longitude }))
 
-          // ✅ Reverse geocoding
-          const response = await axios.get(
-            `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${apiKey}`
-          );
+          const res = await axios.get(
+            "https://api.geoapify.com/v1/geocode/reverse",
+            {
+              params: {
+                lat: latitude,
+                lon: longitude,
+                format: "json",
+                apiKey
+              }
+            }
+          )
 
-          const result = response?.data?.results?.[0] || {};
+          const result = res.data?.results?.[0] || {}
 
-          // ✅ Extract clean data
-          const city = result.city || "";
-          const state = result.state || "";
-          const address =
-            result.address_line2 ||
-            result.address_line1 ||
-            result.formatted ||
-            "";
+          dispatch(setCity(result.city || "Ahmedabad")) // ✅ fallback
+          dispatch(setCurrentState(result.state || "Gujarat"))
+          dispatch(setCurrentAddress(result.formatted || ""))
 
-          console.log(result); // ✅ Fixed (was result.data)
+          dispatch(setAddress(result.formatted || ""))
 
-          // ✅ Store in userSlice
-          dispatch(setCurrentCity(city));
-          dispatch(setCurrentState(state));
-          dispatch(setCurrentAddress(address));
-
-          // ✅ Store in mapSlice (for checkout input)
-          dispatch(setAddress(address));
-        } catch (error) {
-          console.error(
-            "Error fetching city:",
-            error.response?.data || error.message
-          );
+        } catch (err) {
+          console.error("City API error:", err.message)
+          dispatch(setCity("Ahmedabad")) // fallback
         }
       },
-      (error) => {
-        console.error("Geolocation error:", error);
+      () => {
+        // ❌ location fail → fallback city
+        dispatch(setCity("Ahmedabad"))
+      },
+      {
+        timeout: 5000,          // ✅ IMPORTANT
+        enableHighAccuracy: false
       }
-    );
-  }, [userData]);
+    )
+  }, [city, dispatch, apiKey])
 }
 
-export default useGetCity;
+export default useGetCity

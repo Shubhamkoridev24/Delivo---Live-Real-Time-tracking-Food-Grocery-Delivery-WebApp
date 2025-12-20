@@ -80,21 +80,22 @@ const renderStars = (rating) => {
           </button>
 
           <button 
-  className={`${cartItems.some(i => i.id === data._id) 
+  className={`${cartItems.some(i => i._id === data._id) 
       ? "bg-gray-800" 
       : "bg-[#ff4d2d]"
   } text-white px-3 py-2 transition-colors`}
   onClick={() => {
     quantity > 0
       ? dispatch(addToCart({
-          id: data._id,
-          name: data.name,
-          price: data.price,
-          image: data.image,
-shop: data?.shop?._id || data?.shop,
-          quantity,
-          foodType: data.foodType
-        }))
+  _id: data._id,                // 🔥 MUST
+  name: data.name,
+  price: data.price,
+  image: data.image,
+  shop: data?.shop?._id || data?.shop,
+  quantity,
+  foodType: data.foodType
+}))
+
       : null
   }}
 >

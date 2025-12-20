@@ -75,45 +75,63 @@ function OwnerOrderCard({ data }) {
           value={orderStatus}
           onChange={(e) =>
             handleUpdateStatus(
-              data?._id,
-              data?.shopOrders?.shop?._id,
+              data?._id,                          // ORDER ID
+              data?.shopOrders?.shop?._id,        // ✅ REAL SHOP ID
               e.target.value
             )
           }
+
         >
           <option value="">Change</option>
           <option value="pending">Pending</option>
           <option value="preparing">Preparing</option>
-          <option value="out of delivery">Out of Delivery</option>
+          <option value="out for delivery">Out for Delivery</option>
         </select>
       </div>
 
       {/* Delivery Boys */}
-      {(orderStatus === "out of delivery" || orderStatus === "out for delivery") && 
-      <div className='mt-3 p-2 border rounded-lg text-sm bg-orange-50'>
-        {data.shopOrders.assignedDeliveryBoy?<p>Assigned Delivery Boy:</p>:<p>Available Delivery Boys:</p>}
+      {/* Delivery Boys Section */}
+{(orderStatus === "out for delivery" || orderStatus === "out for delivery") && (
+  <div className="mt-3 p-2 border rounded-lg text-sm bg-orange-50">
 
-       {availableBoys.length > 0 ? (
-  availableBoys.map((b, index) => (
-    <div key={b._id || index}>
-      {b.fullName} - {b.mobile}
-    </div>
-  ))
-) : data.shopOrders?.assignedDeliveryBoy?._id ? (
-  <div>
-    {data.shopOrders.assignedDeliveryBoy.fullName} - {data.shopOrders.assignedDeliveryBoy.mobile}
+    {/* Assigned */}
+    {data?.shopOrders?.assignedDeliveryBoy ? (
+      <>
+        <p className="font-semibold mb-1">Assigned Delivery Boy:</p>
+        <p>
+          {data.shopOrders.assignedDeliveryBoy.fullName} –{" "}
+          {data.shopOrders.assignedDeliveryBoy.mobile}
+        </p>
+      </>
+    ) : availableBoys.length > 0 ? (
+      <>
+        <p className="font-semibold mb-1">Available Delivery Boys:</p>
+        {availableBoys.map((b, index) => (
+          <p key={b._id || index}>
+            {b.fullName} – {b.mobile}
+          </p>
+        ))}
+      </>
+    ) : (
+      <p>Waiting for delivery boy to accept</p>
+    )}
+
   </div>
-) : (
-  <div>Waiting for delivery boy to accept</div>
 )}
 
-      </div>
-      }
 
       {/* Total */}
       <div className='text-right font-bold text-gray-800 text-sm'>
-        Total: ₹{data.shopOrders.subTotal}
+        Total: ₹{
+          data?.shopOrders?.subTotal ??
+          data?.shopOrders?.shopOrderItems?.reduce(
+            (sum, i) => sum + (Number(i.price) * Number(i.quantity)),
+            0
+          ) ??
+          0
+        }
       </div>
+
     </div>
   )
 }

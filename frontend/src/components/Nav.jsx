@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 function Nav() {
 
 
-  const { userData, currentCity,cartItems } = useSelector(state => state.user)
+  const { userData, city,cartItems } = useSelector(state => state.user)
   const { myShopData} = useSelector(state => state.owner)
   const [showInfo, setShowInfo] = useState(false)
   const navigate = useNavigate()
@@ -32,7 +32,7 @@ function Nav() {
 
   const handleSearchItems = async () => {
       try {
-          const result = await axios.get(`${serverUrl}/api/item/search-items?query=${query}&city=${currentCity}`, { withCredentials: true })
+          const result = await axios.get(`${serverUrl}/api/item/search-items?query=${query}&city=${city}`, { withCredentials: true })
 dispatch(setSearchItems(result.data))
       } catch (error) {
           console.log(error)
@@ -58,7 +58,7 @@ useEffect(() => {
 
           <div className="flex items-center w-[30%] overflow-hidden px-[10px] border-r-[2px] border-gray-400 gap-[10px]">
             <FaLocationDot size={25} className="text-[#ff4d2d]" />
-            <div className="w-[80%] truncate text-gray-600">{currentCity}</div>
+            <div className="w-[80%] truncate text-gray-600">{city}</div>
           </div>
 
           <div className="flex items-center flex-1 px-[10px] gap-[10px]">
@@ -67,7 +67,7 @@ useEffect(() => {
               type="text"
               placeholder='search delicious food...'
               className="w-full outline-none text-gray-700 outline-0w-full" onChange={
-(e)=>setQuery(e.target.value)} value={query}/>
+              (e)=>setQuery(e.target.value)} value={query}/>
           </div>
         </div>}
 
@@ -80,7 +80,7 @@ useEffect(() => {
         {/* Location */}
         <div className="flex items-center w-[30%] overflow-hidden px-[10px] border-r-[2px] border-gray-400 gap-[10px]">
           <FaLocationDot size={25} className="text-[#ff4d2d]" />
-          <div className="w-[80%] truncate text-gray-600">{currentCity}</div>
+          <div className="w-[80%] truncate text-gray-600">{city}</div>
         </div>
         
 

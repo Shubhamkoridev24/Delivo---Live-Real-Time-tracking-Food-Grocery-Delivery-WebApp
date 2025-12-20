@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import { serverUrl } from '../App';
 import DeliveryBoyTracking from './DeliveryBoyTracking';
+import { socket } from "../socket";
 
 function DeliveryBoy() {
   const { userData } = useSelector(state => state.user);
@@ -96,6 +97,21 @@ const verifyOtp = async () => {
         console.log("VERIFY OTP ERROR:", error.response?.data || error);
     }
 };
+useEffect(() => {
+  if (!userData?._id) return;
+
+  socket.connect();
+  socket.emit("deliveryboy-join", userData._id);
+
+  socket.on("newDeliveryAssignment", () => {
+    console.log("📡 Live assignment received");
+    getAssignments();
+  });
+
+  return () => {
+    socket.off("newDeliveryAssignment");
+  };
+}, [userData?._id]);
 
 
 

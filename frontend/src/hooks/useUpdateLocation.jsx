@@ -1,47 +1,35 @@
-import { useEffect } from "react";
-import axios from "axios";
-import { useDispatch, useSelector } from "react-redux";
-import { setLocation } from "../redux/mapSlice";
-import { serverUrl } from "../App";
+import { useEffect } from "react"
+import axios from "axios"
+import { useSelector } from "react-redux"
+import { serverUrl } from "../App"
 
 function useUpdateLocation() {
-  const dispatch = useDispatch();
-  const { userData } = useSelector((state) => state.user);
+  const userData = useSelector(state => state.user.userData)
 
   useEffect(() => {
-    if (!userData) return; // don't run until user logged in
+    if (!userData) return
 
-    const updateLocation = async (lat, lon) => {
-      try {
-        const result = await axios.post(
-          `${serverUrl}/api/user/update-location`,
-          { latitude: lat, longitude: lon }, // ✅ FIXED BODY
-          { withCredentials: true }
-        );
-
-        console.log("📍 Location updated:", result.data);
-
-        // update Redux store
-        dispatch(setLocation({ lat, lon }));
-
-      } catch (error) {
-        console.error("❌ Error updating location:", error.message);
-      }
-    };
-
-    // watch user live location
     const watcher = navigator.geolocation.watchPosition(
-      (pos) => {
-        updateLocation(pos.coords.latitude, pos.coords.longitude);
+      async (pos) => {
+        try {
+          await axios.post(
+            `${serverUrl}/api/user/update-location`,
+            {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude
+            },
+            { withCredentials: true }
+          )
+        } catch (err) {
+          console.error("Location update failed")
+        }
       },
-      (err) => console.error("Geolocation error:", err),
-      { enableHighAccuracy: true }
-    );
+      () => {},                 // ❌ ignore error
+      { enableHighAccuracy: false }
+    )
 
-    // cleanup watcher when component unmount
-    return () => navigator.geolocation.clearWatch(watcher);
-
-  }, [userData, dispatch]);
+    return () => navigator.geolocation.clearWatch(watcher)
+  }, [userData])
 }
 
-export default useUpdateLocation;
+export default useUpdateLocation

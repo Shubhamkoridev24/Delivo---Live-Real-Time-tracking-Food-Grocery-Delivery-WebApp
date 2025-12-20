@@ -7,45 +7,57 @@ import { removeCartItem, updateQuantity } from "../redux/userSlice";
 function CartItemCard({ data }) {
   const dispatch = useDispatch();
 
-  const handleIncrease = (id, currentQty) => {
-    dispatch(updateQuantity({ id, quantity: currentQty + 1 }));
+  const increase = () => {
+    dispatch(updateQuantity({
+      _id: data._id,
+      quantity: data.quantity + 1
+    }));
   };
 
-  const handleDecrease = (id, currentQty) => {
-    if (currentQty > 1) {
-      dispatch(updateQuantity({ id, quantity: currentQty - 1 }));
+  const decrease = () => {
+    if (data.quantity > 1) {
+      dispatch(updateQuantity({
+        _id: data._id,
+        quantity: data.quantity - 1
+      }));
     }
+  };
+
+  const remove = () => {
+    dispatch(removeCartItem(data._id));
   };
 
   return (
     <div className="flex items-center justify-between bg-white p-4 rounded-xl shadow border">
       <div className="flex items-center gap-4">
-        <img src={data.image} alt="" className="w-20 h-20 object-cover rounded-lg border" />
+        <img
+          src={data.image}
+          alt=""
+          className="w-20 h-20 object-cover rounded-lg border"
+        />
         <div>
           <h1 className="font-medium text-gray-800">{data.name}</h1>
-          <p className="text-sm text-gray-500">{data.price} x {data.quantity}</p>
-          <p className="font-bold text-gray-900">₹ {data.price * data.quantity}</p>
+          <p className="text-sm text-gray-500">
+            ₹{data.price} × {data.quantity}
+          </p>
+          <p className="font-bold text-gray-900">
+            ₹ {data.price * data.quantity}
+          </p>
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <button
-          className="p-2 cursor-pointer bg-gray-200 rounded-full hover:bg-gray-200"
-          onClick={() => handleDecrease(data.id, data.quantity)}
-        >
+        <button onClick={decrease} className="p-2 bg-gray-200 rounded-full">
           <FaMinus size={12} />
         </button>
 
-        <span>{data.quantity}</span>
+        <span className="font-semibold">{data.quantity}</span>
 
-        <button
-          className="p-2 cursor-pointer bg-gray-200 rounded-full hover:bg-gray-200"
-          onClick={() => handleIncrease(data.id, data.quantity)}
-        >
+        <button onClick={increase} className="p-2 bg-gray-200 rounded-full">
           <FaPlus size={12} />
         </button>
 
-        <button className="p-2 bg-gray-200 text-red-600 rounded-full hover:bg-red-200" onClick={()=>dispatch(removeCartItem(data.id))}>
+        <button onClick={remove} className="p-2 bg-red-100 text-red-600 rounded-full">
           <CiTrash size={18} />
         </button>
       </div>

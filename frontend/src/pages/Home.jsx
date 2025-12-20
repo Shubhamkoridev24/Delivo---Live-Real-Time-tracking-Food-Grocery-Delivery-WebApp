@@ -4,16 +4,26 @@ import UserDashboard from '../components/UserDashboard'
 import OwnerDashboard from '../components/OwnerDashboard'
 import DeliveryBoy from '../components/DeliveryBoy'
 
+// ✅ CALL HOOKS HERE
+import useGetCity from '../hooks/useGetCity'
+import useGetShopByCity from '../hooks/useGetShopByCity'
+import useGetItemByCity from '../hooks/useGetItemByCity'
+
 function Home() {
   const { userData } = useSelector(state => state.user)
 
+  // 🔥 IMPORTANT
+  useGetCity()
+  useGetShopByCity()
+  useGetItemByCity()
+
+  if (!userData) return null
+
   return (
-    // className="w-[100vw] min-h-[100vh] pt-[100px] flex flex-col items-center bg-[#fff9f6]">
-    <div >
+    <div>
       {userData.role === "user" && <UserDashboard />}
       {userData.role === "owner" && <OwnerDashboard />}
       {userData.role === "deliveryBoy" && <DeliveryBoy />}
-      
     </div>
   )
 }

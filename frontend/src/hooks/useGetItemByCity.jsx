@@ -6,29 +6,32 @@ import { serverUrl } from '../App'
 
 function useGetItemByCity() {
   const dispatch = useDispatch()
-  const { currentCity } = useSelector(state => state.user)
+  const city = useSelector(state => state.user.city)
 
   useEffect(() => {
+    if (!city || city.trim() === "") return
+
     const fetchItems = async () => {
-      if (!currentCity) return
-
       try {
-        const result = await axios.get(`${serverUrl}/api/shop/get-by-city/${currentCity}`)
-        const shops = result.data || []
+        // 🔥 backend se SHOPS lao (items direct ka route nahi hai)
+        const res = await axios.get(
+          `${serverUrl}/api/shop/get-by-city/${encodeURIComponent(city)}`
+        )
 
-        // collect all items from all shops
+        const shops = res.data || []
+
+        // 🔥 saare shops ke items combine karo
         const allItems = shops.flatMap(shop => shop.items || [])
-        dispatch(setItemsInMyCity(allItems))
 
-        console.log("Suggested food items:", allItems) // debug
-      } catch (error) {
-        console.error("Error fetching suggested items:", error)
-        dispatch(setItemsInMyCity([])) // clear on error
+        dispatch(setItemsInMyCity(allItems))
+      } catch (err) {
+        console.error("Item fetch error:", err)
+        dispatch(setItemsInMyCity([]))
       }
     }
 
     fetchItems()
-  }, [dispatch, currentCity])
+  }, [city, dispatch])
 }
 
 export default useGetItemByCity
