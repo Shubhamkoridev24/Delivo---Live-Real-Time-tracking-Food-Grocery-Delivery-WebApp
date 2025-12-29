@@ -4,11 +4,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { serverUrl } from '../App'
 import { IoIosArrowRoundBack } from 'react-icons/io'
 import DeliveryBoyTracking from '../components/DeliveryBoyTracking'
-
+import { socket } from "../socket"
 function TrackOrderPage() {
     const { orderId } = useParams();
     const [currentOrder, setCurrentOrder] = useState(null);
     const navigate = useNavigate();
+    const [liveLocation, setLiveLocation] = useState(null);
 
     const handleGetOrder = async () => {
         try {
@@ -25,6 +26,24 @@ function TrackOrderPage() {
 
     useEffect(() => {
         if (orderId) handleGetOrder();
+    }, [orderId]);
+    useEffect(() => {
+        if (!orderId) return;
+
+        socket.connect();
+
+        // 🔗 join order room
+        socket.emit("join-order-room", orderId);
+
+        // 📡 listen live delivery boy location
+        socket.on("delivery-location-update", ({ lat, lon }) => {
+            console.log("📍 Live location received:", lat, lon);
+            setLiveLocation({ lat, lon });
+        });
+
+        return () => {
+            socket.off("delivery-location-update");
+        };
     }, [orderId]);
 
     return (
@@ -106,24 +125,21 @@ function TrackOrderPage() {
                         )}
 
                         {/* MAP TRACKING */}
-                        {deliveryBoy?.location && (
-                            <div className="h-[400px] w-full rounded-2xl overflow-hidden shadow-md">
-                                <DeliveryBoyTracking
-                                    deliveryBoyLocation={{
-                                        lat:
-                                            deliveryBoy?.location?.coordinates?.[1] ||
-                                            currentOrder?.deliveryAddress?.latitude,
-                                        lon:
-                                            deliveryBoy?.location?.coordinates?.[0] ||
-                                            currentOrder?.deliveryAddress?.longitude,
-                                    }}
-                                    customerLocation={{
-                                        lat: currentOrder?.deliveryAddress?.latitude,
-                                        lon: currentOrder?.deliveryAddress?.longitude
-                                    }}
-                                />
-                            </div>
-                        )}
+                        {shopOrder?.status !== "delivered" && deliveryBoy?.location && (
+  <div className="h-[400px] w-full rounded-2xl overflow-hidden shadow-md">
+    <DeliveryBoyTracking
+      deliveryBoyLocation={{
+        lat: liveLocation?.lat || deliveryBoy?.location?.coordinates?.[1],
+        lon: liveLocation?.lon || deliveryBoy?.location?.coordinates?.[0],
+      }}
+      customerLocation={{
+        lat: currentOrder?.deliveryAddress?.latitude,
+        lon: currentOrder?.deliveryAddress?.longitude
+      }}
+    />
+  </div>
+)}
+
                     </div>
                 );
             })}

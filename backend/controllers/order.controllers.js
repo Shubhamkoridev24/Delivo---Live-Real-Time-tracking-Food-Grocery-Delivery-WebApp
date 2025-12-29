@@ -142,7 +142,7 @@ export const placeOrder = async (req, res) => {
 
 export const updateOrderStatus = async (req, res) => {
   try {
-        const io = req.app.get("io");
+    const io = req.app.get("io");
 
     const { orderId, shopId } = req.params;
     let { status } = req.body;
@@ -238,6 +238,7 @@ export const getMyOrders = async (req, res) => {
         .populate("shopOrders.shop", "name")
         .populate("shopOrders.owner", "name email mobile")
         .populate("shopOrders.shopOrderItems.item", "name image price")
+
         .populate("user", "fullName email mobile");
 
       return res.status(200).json(orders);
@@ -248,6 +249,7 @@ export const getMyOrders = async (req, res) => {
         .sort({ createdAt: -1 })
         .populate("shopOrders.shop", "name")
         .populate("shopOrders.shopOrderItems.item", "name image price")
+        .populate("shopOrders.assignedDeliveryBoy", "fullName mobile")
         .populate("user", "fullName email mobile");
 
       const filtered = orders.map(order => {
@@ -347,6 +349,12 @@ export const acceptOrder = async (req, res) => {
     const shopOrder = order.shopOrders.id(assignment.shopOrderId);
     shopOrder.assignedDeliveryBoy = req.userId;
     await order.save();
+    const io = req.app.get("io");
+
+    // 👤 USER ko order room join karwao
+    io.to(`user_${order.user}`).emit("join-order-room", {
+      orderId: order._id
+    });
 
     return res.status(200).json({ message: 'order accepted' });
 
@@ -469,48 +477,139 @@ export const verifyDeliveryOtp = async (req, res) => {
     const { orderId, shopOrderId, otp } = req.body;
 
     const order = await Order.findById(orderId).populate("user");
+    if (!order) {
+      return res.status(400).json({ message: "Order not found" });
+    }
+
     const shopOrder = order.shopOrders.id(shopOrderId);
-
-    if (!order || !shopOrder) {
-      return res.status(400).json({ message: "enter valid order/shopOrderId" });
+    if (!shopOrder) {
+      return res.status(400).json({ message: "Shop order not found" });
     }
 
-    if (shopOrder.deliveryOtp !== otp || !shopOrder.otpExpires || shopOrder.otpExpires < Date.now()) {
-      return res.status(400).json({ message: "Invalid/Expired Otp" });
+    // ✅ OTP CHECK
+    if (
+      shopOrder.deliveryOtp !== otp ||
+      !shopOrder.otpExpires ||
+      shopOrder.otpExpires < Date.now()
+    ) {
+      return res.status(400).json({ message: "Invalid / Expired OTP" });
     }
 
+    // ✅ MARK DELIVERED
+    shopOrder.assignedDeliveryBoy = req.userId;
     shopOrder.status = "delivered";
-    shopOrder.deliveredAt = Date.now();
+    shopOrder.deliveredAt = new Date();
     await order.save();
-    const io = getIO();
+    // ✅ MARK ASSIGNMENT COMPLETED
+    await DeliveryAssignment.updateOne(
+      {
+        order: order._id,
+        shopOrderId: shopOrder._id,
+        assignedTo: req.userId
+      },
+      {
+        $set: { status: "completed" }
+      }
+    );
 
-    // USER
-    const userSocketId = getUserSocketId(order.user._id.toString());
-    if (userSocketId) {
-      io.to(userSocketId).emit("orderStatusUpdated", {
-        orderId: order._id,
-        shopOrderId,
-        status: "delivered"
-      });
-    }
 
-    // OWNER
+    const io = req.app.get("io"); // 🔥 CORRECT WAY
+
+    // 🔔 USER
+    io.to(`user_${order.user._id}`).emit("orderStatusUpdated", {
+      orderId: order._id,
+      shopOrderId,
+      status: "delivered"
+    });
+
+    // 🔔 OWNER
     io.to(`owner_${shopOrder.owner}`).emit("orderStatusUpdated", {
       orderId: order._id,
       shopOrderId,
       status: "delivered"
     });
 
+    // 🧹 CLEAN ASSIGNMENT
 
-    await DeliveryAssignment.deleteOne({
-      shopOrderId: shopOrder._id,
-      order: order._id,
-      assignedTo: shopOrder.assignedDeliveryBoy
-    });
 
-    return res.status(200).json({ message: "order delivered successfully!" });
+    return res.status(200).json({ message: "Order delivered successfully" });
 
   } catch (error) {
-    return res.status(400).json({ message: "verify delivery otp error" });
+    console.error("VERIFY OTP ERROR:", error);
+    return res.status(500).json({ message: "verify delivery otp error" });
   }
 };
+
+
+
+// deliveryboy bar chart
+
+export const getTodayDeliveries = async (req, res) => {
+  try {
+    const deliveryBoyId = req.userId;
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const orders = await Order.find({
+      "shopOrders.assignedDeliveryBoy": deliveryBoyId,
+      "shopOrders.status": "delivered",
+      "shopOrders.deliveredAt": { $gte: startOfDay }
+    })
+      .populate("user", "fullName mobile")
+      .populate("shopOrders.shop", "name")
+      .lean();
+
+    let todaysDeliveries = [];
+
+    orders.forEach(order => {
+      order.shopOrders.forEach(shopOrder => {
+        if (
+          shopOrder.status === "delivered" &&
+          shopOrder.assignedDeliveryBoy?.toString() === deliveryBoyId.toString() &&
+          shopOrder.deliveredAt &&
+          new Date(shopOrder.deliveredAt) >= startOfDay
+        ) {
+          todaysDeliveries.push({
+            orderId: order._id,
+            shopOrderId: shopOrder._id,
+            shopName: shopOrder.shop?.name,
+            userName: order.user?.fullName,
+            userMobile: order.user?.mobile,
+            totalAmount: shopOrder.subTotal || shopOrder.subtotal || 0,
+            deliveredAt: shopOrder.deliveredAt
+          });
+        }
+      });
+    });
+
+    // 📊 Hour-wise stats
+    let stats = {};
+
+    todaysDeliveries.forEach(d => {
+      const hour = new Date(d.deliveredAt).getHours();
+      stats[hour] = (stats[hour] || 0) + 1;
+    });
+
+    const formattedStats = Object.keys(stats)
+      .map(hour => ({
+        hour: Number(hour),
+        count: stats[hour]
+      }))
+      .sort((a, b) => a.hour - b.hour);
+    console.log("DEBUG deliveryBoyId:", deliveryBoyId);
+    console.log("DEBUG orders found:", orders.length);
+
+    return res.status(200).json({
+      success: true,
+      count: todaysDeliveries.length,
+      deliveries: todaysDeliveries,
+      stats: formattedStats   // ✅ send stats also
+    });
+
+  } catch (error) {
+    console.error("getTodayDeliveries error:", error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+

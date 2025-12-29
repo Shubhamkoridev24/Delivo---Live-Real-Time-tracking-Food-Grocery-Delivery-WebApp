@@ -30,18 +30,27 @@ export const initSocket = (httpServer) => {
       console.log("🙋 User joined room:", userId);
     });
 
+    socket.on("join-order-room", (orderId) => {
+  socket.join(`order_${orderId}`);
+});
+
     // ✅ DELIVERY BOY JOIN
     socket.on("deliveryboy-join", (deliveryBoyId) => {
       socket.join(`deliveryBoy_${deliveryBoyId}`);
       console.log("🚚 Delivery boy joined room:", deliveryBoyId);
     });
-    
+    socket.on("delivery-location-update", ({ orderId, lat, lon }) => {
+      socket.to(`order_${orderId}`).emit("delivery-location-update", {
+        lat,
+        lon
+      });
+    });
     socket.on("disconnect", () => {
       for (const [key, value] of onlineUsers.entries()) {
         if (value === socket.id) {
           onlineUsers.delete(key);
           break;
-        } 
+        }
       }
       console.log("❌ Socket disconnected:", socket.id);
     });

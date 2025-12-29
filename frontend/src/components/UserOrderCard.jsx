@@ -1,9 +1,11 @@
-import React from "react";
+import axios from "axios";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { serverUrl } from "../App";
 
 function UserOrderCard({ data }) {
   const navigate = useNavigate();
-
+  const [selectedRating, setSelectedRating] = useState({})
   // ❌ agar data hi galat hai → kuch bhi render mat kar
   if (
     !data ||
@@ -23,6 +25,17 @@ function UserOrderCard({ data }) {
       year: "numeric",
     });
   };
+
+  const handleRating = async (itemId, rating) => {
+    try {
+      const result = await axios.post(`${serverUrl}/api/item/rating`, { itemId, rating }, { withCredentials: true })
+      setSelectedRating(prev => ({
+        ...prev, [itemId]: rating
+      }))
+    } catch (error) {
+      console.log(error)
+    }
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-4 space-y-4">
@@ -77,9 +90,27 @@ function UserOrderCard({ data }) {
                   <p className="text-xs text-gray-500">
                     Qty: {item.quantity} × ₹{item.price}
                   </p>
+
+                  {shopOrder.status == "delivered" && <div className='flex space-x-1 mt-2'>
+                    {[1,2,3,4,5].map((star) => (
+  <button
+    key={star}
+    onClick={() => handleRating(item.item._id, star)}
+    className={`${
+      selectedRating[item.item._id] >= star
+        ? "text-yellow-400"
+        : "text-gray-400"
+    }`}
+  >
+    ★
+  </button>
+))}
+
+                  </div>}
                 </div>
               ))}
             </div>
+
 
             <div className="flex justify-between items-center border-t pt-2">
               <p className="font-semibold">
